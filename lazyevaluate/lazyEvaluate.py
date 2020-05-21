@@ -1,6 +1,7 @@
 '''
 Author: Ilya Valmianski
 Email: ivalmian@gmail.com
+URL: https://github.com/ivalmian/lazyEvaluate
 
 See LICENSE for license information
 
@@ -16,7 +17,7 @@ Both LazyEvaluate and Executor have additional helper methods to deal with lazy 
 
 import functools
 from enum import Enum, auto
-from typing import Union, Callable, Any
+from typing import Union, Callable
 
 
 
@@ -176,35 +177,8 @@ class _LazyEvaluate():
         If allow_del is set to True deletes given id (or extracts ID from executor)
 
     Example:
-
-    @lazyEvaluate
-    def fdiv(a,b):
-        val=a/b
-        print(f'{a}/{b}={val}')
-        return val
-
-    print('Defining calls')
-    fdiv(4,5)
-    fdiv(54,5)
-    fdiv(43,5)
-    print('Executing calls')
-    fdiv.executeAll()
-    print('Adding more calls')
-    call_id = fdiv(3,5)
-    print(f'Executing call_id {call_id}')
-    fdiv.execute(call_id)
-    fdiv.executeAll()
-
-    Example output:
-
-    Defining calls
-    Executing calls
-    4/5=0.8
-    54/5=10.8
-    43/5=8.6
-    Adding more calls
-    Executing call_id 139620766968432
-    3/5=0.6
+    ---
+    See https://github.com/ivalmian/lazyEvaluate/blob/master/example_script.py
 
     '''
 
