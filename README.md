@@ -1,10 +1,18 @@
-# lazyEvaluate: a micro library for lazy evaluation
+# lazyevaluate: a micro library for lazy evaluation
 
-Primary use is via LazyEvaluate which wraps the _LazyEvaluate class. It can be used as a decorator around a function, in which case it will replace the return value of the function with lazyEvaluate.Executor object. 
+Primary use is via lazyevaluate.LazyEvaluate which wraps the _LazyEvaluate class. It can be used as a decorator around a function, in which case it will replace the return value of the function with lazyEvaluate.Executor object. 
 
-lazyEvaluate.Executor will only execute the originally called function when the value is attempted to be retrieved. Evaluations of a given Executor are memoized, only the first one actually uses the function call (however used can make multiple Executors for given function/set of arguments).
+lazyevaluate.Executor will only execute the originally called function when the value is attempted to be retrieved. Evaluations of a given Executor are memoized, only the first one actually uses the function call (however used can make multiple Executors for given function/set of arguments).
 
 Both LazyEvaluate and Executor have additional helper methods to deal with lazy evaluation
+
+## Setup
+
+You can setup with pip:
+
+```
+pip install <path to repo>
+```
 
 ## Example
 
@@ -58,10 +66,10 @@ Executor for <lambda>, current state = States.MODIFIED
 
 ## Test
 
-python -m unittest lazyEvaluate_test.py
+python -m lazyevaluate.test
 
 OR 
 
 install coverage (in test_requirements.txt) and execute
 
-./run.test.sh
+./run_test.sh
