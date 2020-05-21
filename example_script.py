@@ -1,4 +1,4 @@
-from lazyEvaluate import LazyEvaluate, Executor
+from lazyevaluate import LazyEvaluate, Executor
 
 @LazyEvaluate
 def fdiv(a,b):

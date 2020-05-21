@@ -1,3 +1,3 @@
 #!/bin/bash
-coverage run --omit lazyEvaluate_test.py lazyEvaluate_test.py 
+coverage run --omit *test*.py -m lazyevaluate.test
 coverage report -m

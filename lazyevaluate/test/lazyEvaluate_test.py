@@ -1,6 +1,6 @@
 #pylint: disable=no-member
 import unittest
-from lazyEvaluate import LazyEvaluate, Executor
+from .. import LazyEvaluate, Executor
 
 @LazyEvaluate(del_after_eval=False)
 def fdiv(a,b):
@@ -92,7 +92,5 @@ class test_lazy_evaluate(unittest.TestCase):
         self.assertEqual(s.value,'hello')
         self.assertEqual(str(s), 'Executor for fdiv, current state = States.MODIFIED')
 
-if __name__=='__main__':
-    unittest.main()
 
     
