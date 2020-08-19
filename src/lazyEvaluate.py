@@ -17,8 +17,7 @@ Both LazyEvaluate and Executor have additional helper methods to deal with lazy 
 
 import functools
 from enum import Enum, auto
-from typing import Union, Callable
-
+from typing import Union, Callable, List, Dict, Any
 
 
 class States(Enum):
@@ -66,7 +65,15 @@ class Executor():
         Setter and getter. If used to get then run Executor.eval(). If used as setter then set value, change state to MODIFIED, and run dropOp(). Note: eval_hook() is not run.
     '''
 
-    def __init__(self, op: Callable, uid: Union[None, int] = None, eval_hook: Union[None, Callable] = None, name: Union[None, str] = None):
+    def __init__(self, f: Callable,
+                 args: List[Any] = [],
+                 kwargs: Dict[Any] = {},
+                 on_call_hooks: Union[None, List[Callable]] = None,
+                 on_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_no_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_after_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_after_mod: Union[None, List[Callable]] = None,
+                 uid: Union[None, int, str] = None):
         '''
         Creates the Executor object
 
@@ -82,39 +89,51 @@ class Executor():
         name: String or None (Optional)
             If None will be defaulted to op.__name__. Name is used to gerenate Executor.__str__() string
         '''
-        if name is None:
-            name = op.__name__
 
-        assert isinstance(op, Callable)
-        assert uid is None or isinstance(uid, int) 
-        assert eval_hook is None or isinstance(eval_hook, Callable)
-        assert name is None or isinstance(name, str)
+        assert callable(f)
+        assert uid is None or isinstance(uid, int) or isinstance(uid, str)
+        assert isinstance(args, list)
+        assert isinstance(kwargs, dict)
+        for hooks in [on_call_hooks, on_eval_hooks, on_modified_no_eval_hooks, on_modified_after_eval_hooks, on_modified_after_mod]:
+            assert hooks is None or all(callable(h) for h in hooks)
 
-        self.op = op
-        self.uid = uid
+        self.f = f
+        self.args = args
+        self.kwargs = kwargs
+        self.uid = uid if uid is not None else id(f)
+        self.f_name = f.__name__
+
         self.result = None
-        self.eval_hook = eval_hook
+
+        self.on_call_hooks = on_call_hooks
+        self.on_eval_hooks = on_eval_hooks
+        self.on_modified_no_eval_hooks = on_modified_no_eval_hooks
+        self.on_modified_after_eval_hooks = on_modified_after_eval_hooks
+        self.on_modified_after_mod = on_modified_after_mod
+
         self.state = States.NOT_EVALUATED
-        self.name = name
+
+        if self.on_call_hooks:
+            for hook in self.on_call_hooks:
+                hook(self)
+
         return
 
     def __str__(self):
-        return f'Executor for {self.name}, current state = {self.state}'
+        return f'<Executor for {self.f_name} @ {self.uid}, current state = {self.state}>'
 
     def eval(self):
         '''
         Evaluates if NOT_EVALUATED state and calls eval_hook and dropOp. Otherwise returns previously computed/set value.
         '''
         if self.state == States.NOT_EVALUATED:
-            self.result = self.op()
+            self.result = self.f(*self.args, **self.kwargs)
             self.state = States.EVALUATED
-            if isinstance(self.eval_hook, Callable):
-                self.eval_hook()
-            self.dropOp()
-        return self.result
+            if self.on_eval_hooks:
+                for hook in self.on_eval_hooks:
+                    hook(self)
 
-    def dropOp(self):
-        self.op = None
+        return self.result
 
     @property
     def value(self):
@@ -126,15 +145,35 @@ class Executor():
     @value.setter
     def value(self, v):
         self.result = v
-        self.state = States.MODIFIED
-        self.dropOp()
+        if self.state == States.NOT_EVALUATED:
+            self.state = States.MODIFIED
+            if self.on_modified_no_eval_hooks:
+                for hook in self.on_modified_no_eval_hooks:
+                    hook(self)
+        elif self.state == States.EVALUATED:
+            self.state = States.MODIFIED
+            if self.on_modified_after_eval_hooks:
+                for hook in self.on_modified_after_eval_hooks:
+                    hook(self)
+        elif self.state == States.MODIFIED:
+            self.state = States.MODIFIED
+            if self.on_modified_after_mod:
+                for hook in self.on_modified_after_mod:
+                    hook(self)
+        else:
+            raise Exception(f'{self}.state has improver value {self.state}')
         return
 
 
 def LazyEvaluate(_func: Union[None, Callable] = None,
                  *,
-                 del_after_eval: bool = True):
-    '''
+                 on_call_hooks: Union[None, List[Callable]] = None,
+                 on_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_no_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_after_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_after_mod: Union[None, List[Callable]] = None,
+                 uid: Union[None, Callable] = None):
+    '''  
     Wrapper around lazyEvaluate._LazyEvaluate decorator class 
 
     Allows passing no argument (in which case defauls are used) or with arguments
@@ -147,12 +186,16 @@ def LazyEvaluate(_func: Union[None, Callable] = None,
 
     '''
     assert _func is None or isinstance(_func, Callable)
-    assert isinstance(del_after_eval, bool)
+
+    for hooks in [on_call_hooks, on_eval_hooks, on_modified_no_eval_hooks, on_modified_after_eval_hooks, on_modified_after_mod]:
+        assert hooks is None or all(callable(h) for h in hooks)
+
+    assert uid is None or callable(uid)
 
     if _func is None:
-        return lambda func: _LazyEvaluate(func, del_after_eval)
+        return lambda func: _LazyEvaluate(func, on_call_hooks, on_eval_hooks, on_modified_no_eval_hooks, on_modified_after_eval_hooks, on_modified_after_mod, uid)
     else:
-        return _LazyEvaluate(_func, del_after_eval)
+        return _LazyEvaluate(_func, on_call_hooks, on_eval_hooks, on_modified_no_eval_hooks, on_modified_after_eval_hooks, on_modified_after_mod, uid)
 
 
 class _LazyEvaluate():
@@ -182,78 +225,40 @@ class _LazyEvaluate():
 
     '''
 
-    def __init__(self, func: Callable, allow_del: bool = True):
+    def __init__(self,
+                 func: Union[None, Callable] = None,
+                 on_call_hooks: Union[None, List[Callable]] = None,
+                 on_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_no_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_after_eval_hooks: Union[None, List[Callable]] = None,
+                 on_modified_after_mod: Union[None, List[Callable]] = None,
+                 uid: Union[None, Callable] = None):
         '''
-        Creates a wrapped for func. Sets allow_del flag to enable deletion of call for calls dict when 
-        _LazyEvaluate.delID is called
+        Creates a wrapped for func.
         '''
-        assert isinstance(func, Callable) and isinstance(allow_del, bool)
 
         functools.update_wrapper(self, func)
-        self.allow_del = allow_del
+        self.on_call_hooks = on_call_hooks
+        self.on_eval_hooks = on_eval_hooks
+        self.on_modified_no_eval_hooks = on_modified_no_eval_hooks
+        self.on_modified_after_eval_hooks = on_modified_after_eval_hooks
+        self.on_modified_after_mod = on_modified_after_mod
+        self.uid = uid
         self.func = func
-        self.calls = dict()
 
     def __call__(self, *args, **kwargs):
         '''
         Adds function call to a dictionary of calls to be executed later
         returns the call_id by which the function will be called
         '''
-        def op(): return self.func(*args, **kwargs)
-        call_id = id(op)
-        self.calls[call_id] = Executor(op,
-                                       call_id,
-                                       lambda: self.delID(call_id),
-                                       name=self.func.__name__)
-        return self.calls[call_id]
 
-    def delID(self, call_id: Union[int, Executor]):
-        '''
-        If del_after_eval is set to true this deletes object from list
-        '''
+        call_id = None if self.uid is None else self.uid()
+        op = Executor(self.func,
+                      args, kwargs,
+                      self.on_call_hooks,
+                      self.on_eval_hooks,
+                      self.on_modified_no_eval_hooks,
+                      self.on_modified_after_eval_hooks,
+                      self.on_modified_after_mod, call_id)
+        return op
 
-        assert isinstance(call_id, int) or isinstance(call_id, Executor)
-
-        if isinstance(call_id, Executor):
-            call_id = call_id.uid
-
-        if self.allow_del:
-            del self.calls[call_id]
-        return
-
-    def runAll(self):
-        '''
-        Runs all call_ids and returns a dictionary of call_ids 
-        and returned function values
-
-        Returns
-        ---
-        ret_vals: dict
-        Dictionary of all lazily added function calls
-        '''
-        ret_vals = {k: f.value for k, f in list(
-            self.calls.items())}  # we wrap in list() to enable deleting elements during evaluation
-        return ret_vals
-
-    def run(self, call_id: Union[int, Executor]):
-        '''
-        Runs a particular call_id and returns function value
-
-        Args
-        ---
-        call_id
-        Executes the function with id returned by __call__() and
-        removes it from the dictionary of call to be evaluated
-
-        Returns
-        ---
-        The return value of the function with call_id 
-        '''
-
-        assert isinstance(call_id, int) or isinstance(call_id, Executor)
-
-        if isinstance(call_id, Executor):
-            call_id = call_id.uid
-
-        ret_val = self.calls[call_id].value
-        return ret_val
