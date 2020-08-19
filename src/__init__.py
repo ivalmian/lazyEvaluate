@@ -21,7 +21,8 @@ to either LazyEvaluate wrapper or directly to Executor which will be called upon
 4. EVALUTED -> MODIFIED               : on_modified_after_eval_hooks
 5. MODIFIED -> MODIFIED               : on_modified_after_mod_hooks
  
-
+For some built-in hooks see .hooks
+For examples see https://github.com/ivalmian/lazyEvaluate/blob/master/examples
 '''
 
 from .lazy_evaluate import LazyEvaluate, Executor, States

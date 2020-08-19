@@ -1,7 +1,17 @@
+*.dill
+.idea
+*.egg-info
+test_reports
+.VSCodeCounter
+
+*.pyc
+binaries
+instance
 .vscode
 __pycache__
+.pytest_cache
 .coverage
+.tox
+.mypy_cache
 
-build
-dist
-lazyevaluate.egg-info
+.pylintrc
